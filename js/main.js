@@ -7,6 +7,7 @@ var player, bullet, enemy;
 var rock1, rock2, field1, field2;
 var spriteList = [];
 var isPushA = false;
+var score = 0;
 /**グローバル変数**/
 
 /**配列を削除するメソッド**/
@@ -26,7 +27,7 @@ addEventListener('load', function () {
 
     //ゲームオブジェクトが読み込まれたら
     game.addEventListener('load', function () {
-        game.pushScene(game.mainScene()); //シーンをゲームに追加する 
+        game.pushScene(game.startScene()); //シーンをゲームに追加する 
     });
 
     //Zキー入力をaボタンとする
@@ -37,6 +38,8 @@ addEventListener('load', function () {
         var scene = new Scene(); //シーンを作成
         scene.backgroundColor = 'black'; //シーンを黒く塗りつぶす
 
+        /*********オブジェクトの作成********/
+
         /**背景の作成**/
         bg(scene);
 
@@ -44,12 +47,17 @@ addEventListener('load', function () {
         var hpLabel = new Label();
         hpLabel.font = "32px 'Russo One', sans-seerif"; //フォントの設定
 
+        /**得点ラベルを作成**/
+        var scoreLabel = new Label();
+        scoreLabel.font = "32px 'Russo One', sans-seerif"; //フォントの設定
+
         /**プレイヤーの作成**/
         player = new Player();
         spriteList.push(player); //spriteListにプッシュ
 
-        var hitABullet = function hitABullet() {
+        /*********オブジェクトの作成********/
 
+        var hitABullet = function hitABullet() {
             //弾を作成
             bullet = new Bullet();
             spriteList.push(bullet);
@@ -62,10 +70,9 @@ addEventListener('load', function () {
 
             //15フレーム毎に敵を生成する
             if (game.frame % 15 === 0) {
-
                 /**敵キャラの作成**/
                 enemy = new Enemy();
-                spriteList.push(enemy); //spriteListにプッシュ    
+                spriteList.push(enemy); //spriteListにプッシュ
             }
 
             /**aボタンが押された瞬間のみ弾を撃つ**/
@@ -81,7 +88,7 @@ addEventListener('load', function () {
                 if (_spriteA.y + _spriteA.height < _spriteB.y + _spriteB.height) return 0;
             });
 
-            /**プレイヤーや敵などのスプライトを表示する**/
+            /************スプライトの表示************/
             for (var i = 0; i < spriteList.length; ++i) {
                 scene.addChild(spriteList[i]);
             }
@@ -89,6 +96,12 @@ addEventListener('load', function () {
             /*プレイヤーのHPを表示**/
             hpLabel.text = 'HP：' + player.hp;
             scene.addChild(hpLabel);
+
+            /*スコアを表示*/
+            scoreLabel.text = 'SCORE：' + score;
+            scoreLabel.y = 30;
+            scene.addChild(scoreLabel);
+            /************スプライトの表示************/
 
             /*プレイヤーのHPが0ならばシーンを切り替える**/
             if (player.hp === 0) game.replaceScene(game.gameOverScene());
@@ -98,13 +111,60 @@ addEventListener('load', function () {
 
     /**ゲームオーバーシーン**/
     game.gameOverScene = function () {
+        /**ゲームオーバーを表示**/
         var scene = new Scene();
         scene.backgroundColor = 'black';
         var gameOverLabel = new Label('GAME OVER');
         gameOverLabel.color = 'red';
-        gameOverLabel.font = "32px 'Russo One', sans-serif";
+        gameOverLabel.font = "32px 'Russo One', sans-seerif";
         gameOverLabel.moveTo(60, 150); //ラベルの位置
         scene.addChild(gameOverLabel);
+
+        /**ゲームの再スタート**/
+        scene.addEventListener('abuttondown', returnGame);
+        scene.addEventListener('touchstart', returnGame);
+
+        function returnGame() {
+            init();
+            game.replaceScene(game.mainScene());
+            game.removeEventListener('abuttondown', returnGame);
+        }
+
+        /**スコアを表示**/
+        var gameOverScoreLabel = new Label();
+        gameOverScoreLabel.text = 'SCORE：' + score;
+        gameOverScoreLabel.color = 'white';
+        gameOverScoreLabel.font = "16px 'Russo One', sans-serif";
+        gameOverScoreLabel.moveTo(180, 250); //ラベルの位置
+        scene.addChild(gameOverScoreLabel);
+
+        return scene;
+    }
+
+    /**スタート（タイトル）シーン**/
+    game.startScene = function () {
+        var scene = new Scene(); //シーンを作成
+        scene.backgroundColor = 'black'; //シーンを黒く塗りつぶす
+        var titleLabel = new Label('Snipe at Mons'); //タイトルのラベルを作成
+        titleLabel.color = 'white';
+        titleLabel.font = "32px 'Russo One', sans-serif"; //フォントの設定
+        titleLabel.moveTo(50, 120); //ラベルの位置
+        scene.addChild(titleLabel);
+
+        var descriptionLabel = new Label('Tap or press Z');
+        descriptionLabel.color = "red";
+        descriptionLabel.font = "16px 'Russo One', sans-serif";
+        descriptionLabel.moveTo(105, 200);
+        scene.addChild(descriptionLabel); //ラベルをsceneに追加
+
+        /**aボタンかタップでメインゲームに進む**/
+        scene.addEventListener('abuttondown', goToTheGame);
+        scene.addEventListener('touchstart', goToTheGame);
+
+        function goToTheGame() {
+            game.replaceScene(game.mainScene());
+            game.removeEventListener('abuttondown', goToTheGame);
+        }
         return scene;
     }
     game.start(); //ゲームスタート
@@ -122,6 +182,8 @@ var Player = Class.create(Sprite, {
         this.image = game.assets['./img/chara1.png'];
         this.frame = 0;
         this.moveTo(60, 180); //プレイヤーの初期位置
+        this.unrivaledTime = 0; //プレイヤーの無敵時間
+
     },
 
     onenterframe: function () {
@@ -155,6 +217,7 @@ var Player = Class.create(Sprite, {
                     if (sprite === this) continue;
                     sprite.x -= speed;
                 }
+                score += 5; //進めば進むほどスコアが加算される
             } else this.x += speed;
         }
         if (game.input.up) {
@@ -172,14 +235,20 @@ var Player = Class.create(Sprite, {
         if (this.y > 260) this.y = 260; //上範囲上限
 
         /**プレイヤーと敵の当たり判定**/
-        for (var i = 0; i < spriteList.length; i++) {
-            var sprite = spriteList[i];
-            if (sprite === this) continue;
-            if (sprite === bullet) continue;
-            if (this.within(sprite, 20)) {
-                this.moveTo(60, 180);
-                this.hp--;
+        if (this.unrivaledTime === 0) {
+            for (var i = 0; i < spriteList.length; i++) {
+                var sprite = spriteList[i];
+                if (sprite === this) continue;
+                if (sprite === bullet) continue;
+                if (this.within(sprite, 20)) {
+                    this.moveTo(60, 180);
+                    this.hp--; //プレイヤーのHPから1ずつ引いていく
+                    this.unrivaledTime = 30; //無敵時間
+                }
             }
+        } else {
+            this.unrivaledTime--;
+            //this.opacity = this.unrivaledTime % 3;
         }
     }
 });
@@ -266,7 +335,15 @@ var Bullet = Class.create(Sprite, {
             if (this.intersect(sprite)) {
                 sprite.existance = 0;
                 this.existance = 0;
+                score += 200; //scoreに200を加算
             }
         }
     }
 });
+
+//変数の初期化
+var init = function () {
+    score = 0;
+    player.hp = 2;
+    spriteList = [];
+}
